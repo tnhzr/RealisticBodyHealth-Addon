@@ -12,11 +12,12 @@ import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
-import org.bukkit.attribute.Attribute;
-import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityDamageByBlockEvent;
+import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
 import realisticbodyhealth.RealisticBodyHealthAddon;
@@ -149,7 +150,25 @@ public final class RealisticHealthService {
         Player player = event.getPlayer();
         if (!shouldControl(player)) {
             forgetPlayer(player);
+            return;
         }
+
+        if (event.getNewHealth() >= event.getOldHealth()) {
+            return;
+        }
+
+        if (!shouldRouteDamageToTorso(event.getCause(), event.getBodyPart())) {
+            return;
+        }
+
+        double maxPartHealth = bodyHealthApi.getMaxPartHealth(player, event.getBodyPart());
+        double reroutedDamage = Math.max(0.0D, (event.getOldHealth() - event.getNewHealth()) / 100.0D * maxPartHealth);
+        if (reroutedDamage <= 0.0D) {
+            return;
+        }
+
+        event.setCancelled(true);
+        bodyHealthApi.damagePlayerDirectly(player, reroutedDamage, BodyPart.TORSO, false, event.getCause());
     }
 
     public void handlePlayerDeath(Player player) {
@@ -409,12 +428,23 @@ public final class RealisticHealthService {
         return player != null && (isBroken(player, BodyPart.HEAD) || isBroken(player, BodyPart.TORSO));
     }
 
-    private double getVanillaMaxHealth(Player player) {
-        AttributeInstance attribute = player.getAttribute(Attribute.MAX_HEALTH);
-        if (attribute != null) {
-            return attribute.getValue();
+    private boolean shouldRouteDamageToTorso(Event cause, BodyPart bodyPart) {
+        if (bodyPart == BodyPart.TORSO) {
+            return false;
         }
 
+        if (!(cause instanceof EntityDamageEvent damageEvent)) {
+            return false;
+        }
+
+        if (damageEvent instanceof EntityDamageByEntityEvent || damageEvent instanceof EntityDamageByBlockEvent) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private double getVanillaMaxHealth(Player player) {
         return player.getMaxHealth();
     }
 

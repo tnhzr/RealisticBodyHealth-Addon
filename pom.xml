@@ -5,16 +5,16 @@
 
     <groupId>me.islam</groupId>
     <artifactId>RealisticBodyHealth</artifactId>
-    <version>1.1.0</version>
+    <version>1.2.0</version>
     <packaging>jar</packaging>
 
     <name>RealisticBodyHealth</name>
-    <description>BodyHealth addon with lethal head and torso damage plus bleeding from broken limbs.</description>
+    <description>BodyHealth addon with bleeding, vanilla-heart isolation, and torso rerouting for non-locational damage.</description>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.release>21</maven.compiler.release>
-        <paper.version>1.21.8-R0.1-SNAPSHOT</paper.version>
+        <paper.version>1.21.1-R0.1-SNAPSHOT</paper.version>
         <bodyhealth.version>4.1.0</bodyhealth.version>
     </properties>
 
