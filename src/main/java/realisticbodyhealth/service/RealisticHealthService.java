@@ -10,6 +10,8 @@ import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Particle;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeInstance;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -103,6 +105,13 @@ public final class RealisticHealthService {
         );
     }
 
+    public void schedulePostDamageSync(Player player) {
+        addon.getBodyHealthPlugin().getServer().getScheduler().runTask(
+                addon.getBodyHealthPlugin(),
+                () -> syncPlayer(player)
+        );
+    }
+
     public void syncPlayer(Player player) {
         if (!shouldControl(player)) {
             forgetPlayer(player);
@@ -176,7 +185,7 @@ public final class RealisticHealthService {
             return;
         }
 
-        double maxHealth = player.getMaxHealth();
+        double maxHealth = getVanillaMaxHealth(player);
         if (player.getHealth() != maxHealth) {
             player.setHealth(maxHealth);
         }
@@ -186,10 +195,19 @@ public final class RealisticHealthService {
         }
     }
 
-    public void restoreInvulnerabilityFrames(Player player, int previousNoDamageTicks) {
-        int targetNoDamageTicks = Math.max(previousNoDamageTicks, player.getMaximumNoDamageTicks());
-        if (player.getNoDamageTicks() < targetNoDamageTicks) {
-            player.setNoDamageTicks(targetNoDamageTicks);
+    public void protectFromVanillaLethalDamage(Player player, double finalDamage) {
+        if (!shouldProtectVanillaHealth(player)) {
+            return;
+        }
+
+        double currentHealth = player.getHealth();
+        if (finalDamage < currentHealth) {
+            return;
+        }
+
+        double requiredBuffer = (finalDamage - currentHealth) + 1.0D;
+        if (player.getAbsorptionAmount() < requiredBuffer) {
+            player.setAbsorptionAmount(requiredBuffer);
         }
     }
 
@@ -392,5 +410,14 @@ public final class RealisticHealthService {
         if (task != null) {
             task.cancel();
         }
+    }
+
+    private double getVanillaMaxHealth(Player player) {
+        AttributeInstance attribute = player.getAttribute(Attribute.MAX_HEALTH);
+        if (attribute != null) {
+            return attribute.getValue();
+        }
+
+        return player.getMaxHealth();
     }
 }

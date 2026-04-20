@@ -37,12 +37,8 @@ public final class RealisticHealthListener implements Listener {
             return;
         }
 
-        int previousNoDamageTicks = player.getNoDamageTicks();
-        event.setCancelled(true);
-        player.setLastDamageCause(event);
-
-        healthService.lockVanillaHealth(player);
-        healthService.restoreInvulnerabilityFrames(player, previousNoDamageTicks);
+        healthService.protectFromVanillaLethalDamage(player, event.getFinalDamage());
+        healthService.schedulePostDamageSync(player);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
