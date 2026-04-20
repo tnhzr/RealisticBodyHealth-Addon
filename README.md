@@ -10,6 +10,9 @@
 - Converts bleeding into periodic `TORSO` damage until the player dies from blood loss.
 - Blocks vanilla healing, clears absorption hearts, and keeps vanilla HP synced to max for covered players.
 
+<img width="608" height="600" alt="image" src="https://github.com/user-attachments/assets/d0617504-0e08-46f6-b007-2bb232157a39" />
+
+
 ## Compatibility
 
 `RealisticBodyHealth` automatically forces `plugins/BodyHealth/config.yml` -> `heal-on-full-health: false` and reloads `BodyHealth`, because the default value breaks strict body-part-only gameplay.
