@@ -2,7 +2,7 @@
 
 This folder is intentionally documentation-first.
 
-`OnlyBodyHealth` handles the gameplay side of disabling vanilla HP. To hide the vanilla heart HUD completely, provide a client resource pack with transparent replacements for the vanilla heart textures used by your target Minecraft client version.
+`RealisticBodyHealth` handles the gameplay side of disabling vanilla HP. To hide the vanilla heart HUD completely, provide a client resource pack with transparent replacements for the vanilla heart textures used by your target Minecraft client version.
 
 ## Recommended Workflow
 

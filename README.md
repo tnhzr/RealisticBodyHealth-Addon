@@ -1,24 +1,18 @@
-# OnlyBodyHealth
+# RealisticBodyHealth
 
-`OnlyBodyHealth` is a `BodyHealth` addon for `Paper 1.21.8` / `Java 21` that disables vanilla HP gameplay and keeps survivability on body parts only.
+`RealisticBodyHealth` is a `BodyHealth` addon for `Paper 1.21.8` / `Java 21` that makes body-part damage the source of truth for survival.
 
 ## What It Does
 
-- Lets `BodyHealth` process hits first, then cancels the vanilla `EntityDamageEvent` so hearts are not consumed.
-- Blocks vanilla `EntityRegainHealthEvent` before `BodyHealth` can turn that heal into body-part regeneration.
-- Pins covered players' vanilla health to max and clears absorption hearts on a sync loop.
-- Respects disabled worlds and bypass permissions so fallback vanilla HP still works where needed.
-- Leaves explicit vanilla kill flows like `/kill` alone by default.
+- Lets `BodyHealth` process hits first, then cancels vanilla HP loss so hearts do not decide death.
+- Kills immediately only when `HEAD` or `TORSO` reaches `0%`.
+- Starts bleeding when arms, legs, or feet are broken.
+- Converts bleeding into periodic `TORSO` damage until the player dies from blood loss.
+- Blocks vanilla healing, clears absorption hearts, and keeps vanilla HP synced to max for covered players.
 
-## Important BodyHealth Setting
+## Compatibility
 
-Strict mode depends on this value in `plugins/BodyHealth/config.yml`:
-
-```yml
-heal-on-full-health: false
-```
-
-If `BodyHealth` still has `heal-on-full-health: true`, this addon disables strict mode for safety and logs a warning.
+`RealisticBodyHealth` automatically forces `plugins/BodyHealth/config.yml` -> `heal-on-full-health: false` and reloads `BodyHealth`, because the default value breaks strict body-part-only gameplay.
 
 ## Build
 
@@ -26,22 +20,29 @@ If `BodyHealth` still has `heal-on-full-health: true`, this addon disables stric
 mvn package
 ```
 
-The built jar will be created in `target/`.
+The built jar will be created in `target/` as `RealisticBodyHealth-<version>.jar`.
 
 ## Install
 
 1. Build the jar with Maven.
 2. Drop the jar into `plugins/BodyHealth/addons`.
 3. Restart the server or reload `BodyHealth`.
-4. Confirm `plugins/BodyHealth/config.yml` has `heal-on-full-health: false`.
 
 ## Permissions
 
-- `onlybodyhealth.bypass`
+- `realisticbodyhealth.bypass`
 - Respects `bodyhealth.bypass.*`
 - Respects `bodyhealth.bypass.damage.*`
 - Respects `bodyhealth.bypass.regen.*`
 - Respects per-part `bodyhealth.bypass.damage.<part>` and `bodyhealth.bypass.regen.<part>`
+
+## Lethal Rules
+
+- `HEAD` at `0%` kills immediately.
+- `TORSO` at `0%` kills immediately.
+- Broken limbs do not kill immediately.
+- Broken limbs apply bleed stacks.
+- Bleed stacks deal periodic `TORSO` damage until the torso fails.
 
 ## Heart HUD
 

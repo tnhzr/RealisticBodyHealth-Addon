@@ -4,12 +4,12 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>me.islam</groupId>
-    <artifactId>OnlyBodyHealth</artifactId>
-    <version>1.0.0</version>
+    <artifactId>RealisticBodyHealth</artifactId>
+    <version>1.1.0</version>
     <packaging>jar</packaging>
 
-    <name>OnlyBodyHealth</name>
-    <description>BodyHealth addon that disables vanilla HP gameplay and locks health to body parts.</description>
+    <name>RealisticBodyHealth</name>
+    <description>BodyHealth addon with lethal head and torso damage plus bleeding from broken limbs.</description>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
