@@ -1,0 +1,29 @@
+# OnlyBodyHealth addon config
+#
+# This addon forces gameplay health to live in BodyHealth body parts instead of
+# vanilla hearts. It cancels vanilla HP damage after BodyHealth has already
+# processed the hit, blocks vanilla healing, and keeps the vanilla health bar
+# pinned to max for covered players.
+
+# Master switch for strict mode.
+strict-mode: true
+
+# How often to re-lock vanilla health and absorption for covered players.
+# 1 tick is the safest option for plugin compatibility.
+health-sync-interval-ticks: 1
+
+# Remove absorption hearts while strict mode is active.
+clear-absorption: true
+
+# Respect BodyHealth bypass permissions. If true, players with bypass
+# permissions fall back to vanilla HP and are ignored by this addon.
+respect-bodyhealth-bypass: true
+
+# Allow explicit vanilla kill flows like /kill to work normally.
+allow-vanilla-kill-commands: true
+
+# BodyHealth defaults this to true in its own config, which would convert
+# vanilla full-health healing into body-part regeneration and break strict mode.
+# When enabled, strict mode will disable itself until BodyHealth's
+# heal-on-full-health is set to false.
+require-heal-on-full-health-disabled: true
