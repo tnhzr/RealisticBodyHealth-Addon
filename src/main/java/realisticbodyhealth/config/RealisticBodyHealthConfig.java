@@ -28,8 +28,10 @@ public record RealisticBodyHealthConfig(
     public record BleedingConfig(
             boolean enabled,
             int intervalTicks,
-            double baseTorsoDamagePercent,
-            double extraDamagePerStackPercent,
+            boolean canKill,
+            double fatalTimeSecondsSingleStack,
+            double extraSpeedPerStack,
+            double nonLethalMinTorsoHealthPercent,
             int particleCountBase,
             int particleCountPerStack,
             String sound,
@@ -40,14 +42,16 @@ public record RealisticBodyHealthConfig(
 
         public static BleedingConfig from(ConfigurationSection config) {
             if (config == null) {
-                return new BleedingConfig(true, 40, 2.5D, 1.5D, 8, 4, "entity.player.hurt", 0.9F, 0.8F, "&cYou are bleeding out");
+                return new BleedingConfig(true, 40, true, 40.0D, 1.0D, 1.0D, 8, 4, "entity.player.hurt", 0.9F, 0.8F, "&cYou are bleeding out");
             }
 
             return new BleedingConfig(
                     config.getBoolean("enabled", true),
                     Math.max(1, config.getInt("interval-ticks", 40)),
-                    Math.max(0.1D, config.getDouble("base-torso-damage-percent", 2.5D)),
-                    Math.max(0.0D, config.getDouble("extra-damage-per-stack-percent", 1.5D)),
+                    config.getBoolean("can-kill", true),
+                    Math.max(1.0D, config.getDouble("fatal-time-seconds-single-stack", 40.0D)),
+                    Math.max(0.0D, config.getDouble("extra-speed-per-stack", 1.0D)),
+                    Math.max(0.1D, config.getDouble("non-lethal-min-torso-health-percent", 1.0D)),
                     Math.max(0, config.getInt("particle-count-base", 8)),
                     Math.max(0, config.getInt("particle-count-per-stack", 4)),
                     config.getString("sound", "entity.player.hurt"),

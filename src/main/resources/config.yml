@@ -1,9 +1,9 @@
 # RealisticBodyHealth addon config
 #
 # This addon turns BodyHealth into the source of truth for survival:
-# - HEAD or TORSO at 0% kills immediately
+# - HEAD/TORSO death is left to BodyHealth itself
 # - broken limbs start bleeding
-# - bleeding damages the torso over time
+# - bleeding can damage the torso over time
 # - vanilla hearts are kept as a synced shell and should not decide death
 
 # Master switch for RealisticBodyHealth.
@@ -25,8 +25,10 @@ auto-disable-bodyhealth-heal-on-full-health: true
 bleeding:
   enabled: true
   interval-ticks: 40
-  base-torso-damage-percent: 2.5
-  extra-damage-per-stack-percent: 1.5
+  can-kill: true
+  fatal-time-seconds-single-stack: 40.0
+  extra-speed-per-stack: 1.0
+  non-lethal-min-torso-health-percent: 1.0
   particle-count-base: 8
   particle-count-per-stack: 4
   sound: entity.player.hurt

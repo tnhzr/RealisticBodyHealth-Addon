@@ -5,7 +5,7 @@
 ## What It Does
 
 - Lets `BodyHealth` process hits first, then cancels vanilla HP loss so hearts do not decide death.
-- Kills immediately only when `HEAD` or `TORSO` reaches `0%`.
+- Leaves `HEAD` / `TORSO` death to `BodyHealth` itself.
 - Starts bleeding when arms, legs, or feet are broken.
 - Converts bleeding into periodic `TORSO` damage until the player dies from blood loss.
 - Blocks vanilla healing, clears absorption hearts, and keeps vanilla HP synced to max for covered players.
@@ -38,11 +38,11 @@ The built jar will be created in `target/` as `RealisticBodyHealth-<version>.jar
 
 ## Lethal Rules
 
-- `HEAD` at `0%` kills immediately.
-- `TORSO` at `0%` kills immediately.
+- `HEAD` / `TORSO` lethal handling is expected to be configured in `BodyHealth`.
 - Broken limbs do not kill immediately.
 - Broken limbs apply bleed stacks.
-- Bleed stacks deal periodic `TORSO` damage until the torso fails.
+- Bleed stacks deal periodic `TORSO` damage.
+- Bleeding speed and whether it can kill are configurable in this addon's config.
 
 ## Heart HUD
 
