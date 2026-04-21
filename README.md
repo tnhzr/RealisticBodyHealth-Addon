@@ -20,6 +20,9 @@ The addon keeps vanilla hearts out of survival logic and lets `BodyHealth` remai
   - other `EntityRegainHealthEvent` sources, which are now converted into body-part healing instead of vanilla heart healing
 - Heals body parts after sleeping only when the night was actually skipped.
 
+<img width="608" height="600" alt="Снимок экрана 2026-04-20 180819" src="https://github.com/user-attachments/assets/f3691ac4-99e1-4ff1-ba51-6281c6e89328" />
+
+
 ## Visual Effects
 
 - Bleeding still has blood effects, sound, and actionbar feedback.
