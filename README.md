@@ -13,7 +13,7 @@ It keeps vanilla hearts out of survival logic and lets `BodyHealth` stay in full
 - Converts allowed healing into body-part healing:
   - `Instant Health`
   - active `Regeneration`, including golden apples and beacons
-- Supports `OP` players when `apply-to-operators: true`.
+- Supports `OP` players when `apply-to-operators: true`. ( When testing always disable op or perm for better results, it may conflict )
 
 ## Important Behavior
 
