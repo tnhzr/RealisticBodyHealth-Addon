@@ -4,43 +4,58 @@ import bodyhealth.api.addons.AddonInfo;
 import bodyhealth.api.addons.BodyHealthAddon;
 import org.bukkit.configuration.file.FileConfiguration;
 import realisticbodyhealth.config.RealisticBodyHealthConfig;
-import realisticbodyhealth.listener.RealisticHealthListener;
-import realisticbodyhealth.service.RealisticHealthService;
+import realisticbodyhealth.listener.CombatStateListener;
+import realisticbodyhealth.listener.HealingListener;
+import realisticbodyhealth.service.CombatStateService;
+import realisticbodyhealth.service.HealingService;
 
 import java.io.File;
 
 @AddonInfo(
         name = "RealisticBodyHealth",
-        description = "BodyHealth addon with vanilla-heart isolation, bleeding, potion healing, and sleep recovery.",
-        version = "1.3.0",
+        description = "BodyHealth addon with strict heart shielding, bleeding, and controlled body-part healing.",
+        version = "1.5.2",
         author = "Islam"
 )
 public final class RealisticBodyHealthAddon extends BodyHealthAddon {
 
-    private RealisticHealthService healthService;
+    private CombatStateService combatStateService;
+    private HealingService healingService;
 
     @Override
     public void onAddonEnable() {
-        healthService = new RealisticHealthService(this);
-        registerListener(new RealisticHealthListener(healthService));
-        healthService.reload(loadAddonConfig());
-        healthService.syncOnlinePlayers();
+        combatStateService = new CombatStateService(this);
+        healingService = new HealingService(this, combatStateService);
+
+        registerListener(new CombatStateListener(combatStateService));
+        registerListener(new HealingListener(combatStateService, healingService));
+
+        RealisticBodyHealthConfig config = loadAddonConfig();
+        combatStateService.reload(config);
+        healingService.reload(config);
+        combatStateService.syncOnlinePlayers();
     }
 
     @Override
     public void onAddonReload() {
-        if (healthService == null) {
+        if (combatStateService == null || healingService == null) {
             return;
         }
 
-        healthService.reload(loadAddonConfig());
-        healthService.syncOnlinePlayers();
+        RealisticBodyHealthConfig config = loadAddonConfig();
+        combatStateService.reload(config);
+        healingService.reload(config);
+        combatStateService.syncOnlinePlayers();
     }
 
     @Override
     public void onAddonDisable() {
-        if (healthService != null) {
-            healthService.shutdown();
+        if (healingService != null) {
+            healingService.shutdown();
+        }
+
+        if (combatStateService != null) {
+            combatStateService.shutdown();
         }
 
         unregisterListeners();

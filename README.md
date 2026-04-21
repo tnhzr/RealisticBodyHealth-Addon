@@ -1,40 +1,31 @@
 # RealisticBodyHealth
 
-`RealisticBodyHealth` is a `BodyHealth` addon for `Paper 1.21.x` running on `Java 21` to `Java 26`.
+`RealisticBodyHealth` is a `BodyHealth` addon for `Paper 1.21.x` on `Java 21` to `Java 26`.
 
-The addon keeps vanilla hearts out of survival logic and lets `BodyHealth` remain the main source of truth for body-part damage.
+It keeps vanilla hearts out of survival logic and lets `BodyHealth` stay in full control of where damage is applied.
 
-## What The Addon Does
+## Features
 
-- Leaves external damage from mobs, players, arrows, splash potions, and blocks to `BodyHealth`, while preventing vanilla hearts from becoming the real survival system.
-- Redirects internal and non-locational damage directly to `TORSO`.
-  - This includes starvation, drowning, fire, lava, and other damage causes without a specific hit location.
-- Does not duplicate `HEAD` / `TORSO` death handling.
-  - Death at zero head or torso health should be configured in `BodyHealth` itself.
-- Keeps bleeding from broken limbs and continues converting that bleeding into gradual `TORSO` damage.
-- Supports `OP` players.
-  - By default, the addon also applies to operators even if they implicitly have bypass-style permissions.
-- Restores body-part healing from:
-  - instant health potions
-  - regeneration potions
-  - other `EntityRegainHealthEvent` sources, which are now converted into body-part healing instead of vanilla heart healing
-- Heals body parts after sleeping only when the night was actually skipped.
+- Keeps melee, projectile, fall, fire, lava, drowning, freezing, starvation, suffocation, and other damage causes routed by `BodyHealth`.
+- Prevents vanilla hearts from becoming the real survival system.
+- Does not duplicate `HEAD` or `TORSO` death handling.
+- Adds bleeding from broken limbs, with configurable speed, visuals, sound, and lethality.
+- Converts allowed healing into body-part healing:
+  - `Instant Health`
+  - active `Regeneration`, including golden apples and beacons
+- Supports `OP` players when `apply-to-operators: true`.
 
-<img width="608" height="600" alt="Снимок экрана 2026-04-20 180819" src="https://github.com/user-attachments/assets/f3691ac4-99e1-4ff1-ba51-6281c6e89328" />
+## Important Behavior
 
-
-## Visual Effects
-
-- Bleeding still has blood effects, sound, and actionbar feedback.
-- Low `HEAD` or `TORSO` health adds a red vignette effect through a personal `WorldBorder` plus extra red particles.
+- Damage distribution is not hardcoded in this addon.
+- If you want hunger, suffocation, fire, drowning, or any other cause to hit specific body parts, configure that in `BodyHealth` itself.
+- `plugins/BodyHealth/config.yml -> heal-on-full-health` is forced to `false` automatically because it conflicts with this addon.
 
 ## Compatibility
 
 - `Paper 1.21.x`
-- `Java 21` - `Java 26`
+- `Java 21` to `Java 26`
 - `BodyHealth 4.1.0`
-
-`RealisticBodyHealth` automatically forces `plugins/BodyHealth/config.yml -> heal-on-full-health` to `false`, because that setting breaks the addon's damage and healing model.
 
 ## Build
 
@@ -46,42 +37,52 @@ The built jar is created in `target/` as `RealisticBodyHealth-<version>.jar`.
 
 ## Install
 
-1. Build the jar with Maven or use a release build.
-2. Do **not** place the addon jar in `/plugins`.
-3. The correct install path is `/plugins/BodyHealth/addons/`
+1. Build the jar or download a release.
+2. Do not place the jar in `/plugins`.
+3. Place it in `/plugins/BodyHealth/addons/`.
 4. Restart the server or reload `BodyHealth`.
 
-## Heart-Hiding Resource Pack
+## Resource Pack
 
-The repository already includes a ready-to-use [resourcepack](resourcepack/) folder with hidden vanilla heart textures.
+The repository includes a ready-to-use [resourcepack](resourcepack/) folder with hidden vanilla heart textures.
 
-If you want to fully remove the vanilla heart HUD:
+If you want to remove the vanilla heart HUD completely:
 
-1. Zip the contents of the `resourcepack/` folder.
-2. Use that zip as a normal server resource pack.
-3. Display health through `BetterHud` / `BodyHealth`.
-
-There is also a documented template in [docs/resource-pack-template/README.md](docs/resource-pack-template/README.md).
+1. Zip the contents of `resourcepack/`.
+2. Use that zip as your server resource pack.
+3. Show health through `BetterHud` or `BodyHealth`.
 
 ## Config
 
-Main options:
+Top-level options:
 
+- `strict-mode`
+- `health-sync-interval-ticks`
+- `clear-absorption`
+- `respect-bodyhealth-bypass`
 - `apply-to-operators`
-  - enables addon mechanics for `OP` players
-- `bleeding.*`
-  - controls bleeding speed and lethality
-- `critical-effects.*`
-  - controls thresholds and visual intensity for `HEAD` and `TORSO`
-- `sleep-healing.heal-percent-per-part`
-  - controls how much health each body part restores after one actually skipped night
+- `auto-disable-bodyhealth-heal-on-full-health`
+
+Bleeding options:
+
+- `bleeding.enabled`
+- `bleeding.interval-ticks`
+- `bleeding.can-kill`
+- `bleeding.fatal-time-seconds-single-stack`
+- `bleeding.extra-speed-per-stack`
+- `bleeding.non-lethal-min-torso-health-percent`
+- `bleeding.particle-count-base`
+- `bleeding.particle-count-per-stack`
+- `bleeding.sound`
+- `bleeding.sound-volume`
+- `bleeding.sound-pitch-base`
+- `bleeding.actionbar`
 
 ## Permissions
 
 - `realisticbodyhealth.bypass`
-- Respects `bodyhealth.bypass.*`
-- Respects `bodyhealth.bypass.damage.*`
-- Respects `bodyhealth.bypass.regen.*`
-- Respects `bodyhealth.bypass.damage.<part>` and `bodyhealth.bypass.regen.<part>`
-
-If `apply-to-operators: true`, operators will not automatically bypass the addon only because they are `OP`.
+- `bodyhealth.bypass.*`
+- `bodyhealth.bypass.damage.*`
+- `bodyhealth.bypass.regen.*`
+- `bodyhealth.bypass.damage.<part>`
+- `bodyhealth.bypass.regen.<part>`

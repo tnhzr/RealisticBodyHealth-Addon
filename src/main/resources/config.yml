@@ -5,8 +5,10 @@
 # - broken limbs start bleeding
 # - bleeding can damage the torso over time
 # - vanilla hearts are kept as a synced shell and should not decide death
+# - all damage distribution stays in BodyHealth config
+# - allowed body-part healing comes from instant health and regeneration
 
-# Master switch for RealisticBodyHealth.
+# Enable or disable the addon.
 strict-mode: true
 
 # How often to resync vanilla health and absorption.
@@ -15,14 +17,13 @@ health-sync-interval-ticks: 1
 # Remove absorption hearts while RealisticBodyHealth is active.
 clear-absorption: true
 
-# Respect BodyHealth bypass permissions. If true, players with bypass
-# permissions fall back to vanilla HP and are ignored by this addon.
+# Respect BodyHealth bypass permissions.
 respect-bodyhealth-bypass: true
 
-# Apply addon mechanics to OP players even if they implicitly have bypass permissions.
+# Apply addon mechanics to OP players too.
 apply-to-operators: true
 
-# Automatically force BodyHealth's heal-on-full-health setting off and reload it.
+# Force BodyHealth's heal-on-full-health to false.
 auto-disable-bodyhealth-heal-on-full-health: true
 
 bleeding:
@@ -38,15 +39,3 @@ bleeding:
   sound-volume: 0.9
   sound-pitch-base: 0.8
   actionbar: "&cYou are bleeding out"
-
-critical-effects:
-  enabled: true
-  head-threshold-percent: 35.0
-  torso-threshold-percent: 40.0
-  border-size: 10.0
-  warning-distance: 16
-  particle-count: 6
-
-sleep-healing:
-  enabled: true
-  heal-percent-per-part: 18.0

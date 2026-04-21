@@ -5,11 +5,11 @@
 
     <groupId>me.islam</groupId>
     <artifactId>RealisticBodyHealth</artifactId>
-    <version>1.3.0</version>
+    <version>1.5.2</version>
     <packaging>jar</packaging>
 
     <name>RealisticBodyHealth</name>
-    <description>BodyHealth addon with bleeding, potion healing, sleep recovery, and vanilla-heart isolation.</description>
+    <description>BodyHealth addon with strict heart shielding, controlled healing, and bleeding.</description>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>

@@ -10,9 +10,7 @@ public record RealisticBodyHealthConfig(
         boolean respectBodyHealthBypass,
         boolean applyToOperators,
         boolean autoDisableBodyHealthHealOnFullHealth,
-        BleedingConfig bleeding,
-        CriticalEffectsConfig criticalEffects,
-        SleepHealingConfig sleepHealing
+        BleedingConfig bleeding
 ) {
 
     public static RealisticBodyHealthConfig from(FileConfiguration config) {
@@ -25,9 +23,7 @@ public record RealisticBodyHealthConfig(
                 config.getBoolean("respect-bodyhealth-bypass", true),
                 config.getBoolean("apply-to-operators", true),
                 config.getBoolean("auto-disable-bodyhealth-heal-on-full-health", true),
-                BleedingConfig.from(bleedingSection),
-                CriticalEffectsConfig.from(config.getConfigurationSection("critical-effects")),
-                SleepHealingConfig.from(config.getConfigurationSection("sleep-healing"))
+                BleedingConfig.from(bleedingSection)
         );
     }
 
@@ -64,48 +60,6 @@ public record RealisticBodyHealthConfig(
                     (float) config.getDouble("sound-volume", 0.9D),
                     (float) config.getDouble("sound-pitch-base", 0.8D),
                     config.getString("actionbar", "&cYou are bleeding out")
-            );
-        }
-    }
-
-    public record CriticalEffectsConfig(
-            boolean enabled,
-            double headThresholdPercent,
-            double torsoThresholdPercent,
-            double borderSize,
-            int warningDistance,
-            int particleCount
-    ) {
-
-        public static CriticalEffectsConfig from(ConfigurationSection config) {
-            if (config == null) {
-                return new CriticalEffectsConfig(true, 35.0D, 40.0D, 10.0D, 16, 6);
-            }
-
-            return new CriticalEffectsConfig(
-                    config.getBoolean("enabled", true),
-                    Math.max(0.1D, Math.min(100.0D, config.getDouble("head-threshold-percent", 35.0D))),
-                    Math.max(0.1D, Math.min(100.0D, config.getDouble("torso-threshold-percent", 40.0D))),
-                    Math.max(2.0D, config.getDouble("border-size", 10.0D)),
-                    Math.max(1, config.getInt("warning-distance", 16)),
-                    Math.max(0, config.getInt("particle-count", 6))
-            );
-        }
-    }
-
-    public record SleepHealingConfig(
-            boolean enabled,
-            double healPercentPerPart
-    ) {
-
-        public static SleepHealingConfig from(ConfigurationSection config) {
-            if (config == null) {
-                return new SleepHealingConfig(true, 18.0D);
-            }
-
-            return new SleepHealingConfig(
-                    config.getBoolean("enabled", true),
-                    Math.max(0.0D, Math.min(100.0D, config.getDouble("heal-percent-per-part", 18.0D)))
             );
         }
     }
