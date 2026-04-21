@@ -4,81 +4,81 @@
 
 The addon keeps vanilla hearts out of survival logic and lets `BodyHealth` remain the main source of truth for body-part damage.
 
-## Что делает аддон
+## What The Addon Does
 
-- Оставляет внешний урон от мобов, игроков, стрел, зелий и блоков на стороне `BodyHealth`, но не дает ванильным сердечкам тратиться.
-- Перенаправляет внутренний и нелокационный урон прямо в `TORSO`.
-  - Сюда входят голод, утопление, огонь, лава и другие причины урона без конкретной точки попадания.
-- Не дублирует смерть по `HEAD` и `TORSO`.
-  - Смерть при нуле головы или торса должна настраиваться в самом `BodyHealth`.
-- Оставляет кровотечение от сломанных конечностей и продолжает переводить его в постепенный урон по `TORSO`.
-- Поддерживает `OP`-игроков.
-  - По умолчанию аддон работает и на операторах, даже если они автоматически имеют bypass-права.
-- Возвращает лечение частей тела от:
-  - зелья мгновенного исцеления
-  - зелья регенерации
-  - других `EntityRegainHealthEvent`, которые теперь конвертируются в лечение частей тела, а не сердечек
-- Лечит части тела после сна только если ночь реально была пропущена.
+- Leaves external damage from mobs, players, arrows, splash potions, and blocks to `BodyHealth`, while preventing vanilla hearts from becoming the real survival system.
+- Redirects internal and non-locational damage directly to `TORSO`.
+  - This includes starvation, drowning, fire, lava, and other damage causes without a specific hit location.
+- Does not duplicate `HEAD` / `TORSO` death handling.
+  - Death at zero head or torso health should be configured in `BodyHealth` itself.
+- Keeps bleeding from broken limbs and continues converting that bleeding into gradual `TORSO` damage.
+- Supports `OP` players.
+  - By default, the addon also applies to operators even if they implicitly have bypass-style permissions.
+- Restores body-part healing from:
+  - instant health potions
+  - regeneration potions
+  - other `EntityRegainHealthEvent` sources, which are now converted into body-part healing instead of vanilla heart healing
+- Heals body parts after sleeping only when the night was actually skipped.
 
-## Визуальные эффекты
+## Visual Effects
 
-- При кровотечении остаются эффекты крови, звуки и actionbar.
-- При низком здоровье `HEAD` или `TORSO` появляется красная виньетка через персональный `WorldBorder` и дополнительные красные частицы.
+- Bleeding still has blood effects, sound, and actionbar feedback.
+- Low `HEAD` or `TORSO` health adds a red vignette effect through a personal `WorldBorder` plus extra red particles.
 
-## Совместимость
+## Compatibility
 
 - `Paper 1.21.x`
 - `Java 21` - `Java 26`
 - `BodyHealth 4.1.0`
 
-`RealisticBodyHealth` автоматически принудительно выключает `plugins/BodyHealth/config.yml -> heal-on-full-health`, потому что эта настройка ломает механику аддона.
+`RealisticBodyHealth` automatically forces `plugins/BodyHealth/config.yml -> heal-on-full-health` to `false`, because that setting breaks the addon's damage and healing model.
 
-## Сборка
+## Build
 
 ```bash
 mvn package
 ```
 
-Готовый jar создаётся в `target/` как `RealisticBodyHealth-<version>.jar`.
+The built jar is created in `target/` as `RealisticBodyHealth-<version>.jar`.
 
-## Установка
+## Install
 
-1. Собери jar через Maven или возьми готовый релиз.
-2. Положи jar **не** в `/plugins`.
-3. Правильный путь для аддона: `/plugins/BodyHealth/addons/`
-4. Перезапусти сервер или перезагрузи `BodyHealth`.
+1. Build the jar with Maven or use a release build.
+2. Do **not** place the addon jar in `/plugins`.
+3. The correct install path is `/plugins/BodyHealth/addons/`
+4. Restart the server or reload `BodyHealth`.
 
-## Ресурспак на скрытие сердечек
+## Heart-Hiding Resource Pack
 
-В репозитории уже лежит готовая папка [resourcepack](resourcepack/) с текстурами для скрытия ванильных сердечек.
+The repository already includes a ready-to-use [resourcepack](resourcepack/) folder with hidden vanilla heart textures.
 
-Если ты хочешь полностью убрать hearts HUD:
+If you want to fully remove the vanilla heart HUD:
 
-1. Заархивируй содержимое папки `resourcepack/` в zip.
-2. Подключи этот архив как обычный серверный ресурспак.
-3. Показывай здоровье через `BetterHud` / `BodyHealth`.
+1. Zip the contents of the `resourcepack/` folder.
+2. Use that zip as a normal server resource pack.
+3. Display health through `BetterHud` / `BodyHealth`.
 
-Также остаётся шаблон документации в [docs/resource-pack-template/README.md](docs/resource-pack-template/README.md).
+There is also a documented template in [docs/resource-pack-template/README.md](docs/resource-pack-template/README.md).
 
-## Конфиг
+## Config
 
-Основные настройки:
+Main options:
 
 - `apply-to-operators`
-  - включает механику аддона для `OP`
+  - enables addon mechanics for `OP` players
 - `bleeding.*`
-  - скорость и летальность кровотечения
+  - controls bleeding speed and lethality
 - `critical-effects.*`
-  - пороги и интенсивность визуальных эффектов для `HEAD` и `TORSO`
+  - controls thresholds and visual intensity for `HEAD` and `TORSO`
 - `sleep-healing.heal-percent-per-part`
-  - сколько процентов здоровья части тела восстанавливается за одну реально пропущенную ночь
+  - controls how much health each body part restores after one actually skipped night
 
-## Права
+## Permissions
 
 - `realisticbodyhealth.bypass`
-- Уважаются права `bodyhealth.bypass.*`
-- Уважаются права `bodyhealth.bypass.damage.*`
-- Уважаются права `bodyhealth.bypass.regen.*`
-- Уважаются `bodyhealth.bypass.damage.<part>` и `bodyhealth.bypass.regen.<part>`
+- Respects `bodyhealth.bypass.*`
+- Respects `bodyhealth.bypass.damage.*`
+- Respects `bodyhealth.bypass.regen.*`
+- Respects `bodyhealth.bypass.damage.<part>` and `bodyhealth.bypass.regen.<part>`
 
-Если `apply-to-operators: true`, операторы не будут автоматически обходить механику аддона только из-за `OP`.
+If `apply-to-operators: true`, operators will not automatically bypass the addon only because they are `OP`.
