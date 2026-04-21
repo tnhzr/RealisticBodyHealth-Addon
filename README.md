@@ -15,6 +15,9 @@ It keeps vanilla hearts out of survival logic and lets `BodyHealth` stay in full
   - active `Regeneration`, including golden apples and beacons
 - Supports `OP` players when `apply-to-operators: true`. ( When testing always disable op or perm for better results, it may conflict )
 
+<img width="608" height="600" alt="Снимок экрана 2026-04-20 180819" src="https://github.com/user-attachments/assets/667ccdcc-e075-4fef-babf-77b52a9f9fbe" />
+
+
 ## Important Behavior
 
 - Damage distribution is not hardcoded in this addon.
