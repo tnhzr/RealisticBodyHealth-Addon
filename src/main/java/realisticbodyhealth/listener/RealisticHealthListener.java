@@ -1,18 +1,23 @@
 package realisticbodyhealth.listener;
 
-import bodyhealth.api.events.BodyPartHealthChangeEvent;
 import bodyhealth.api.events.BodyPartStateChangeEvent;
+import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.AreaEffectCloudApplyEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityRegainHealthEvent;
 import org.bukkit.event.entity.PlayerDeathEvent;
+import org.bukkit.event.entity.PotionSplashEvent;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
+import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
+import org.bukkit.event.world.TimeSkipEvent;
+import org.bukkit.inventory.meta.PotionMeta;
 import realisticbodyhealth.service.RealisticHealthService;
 
 public final class RealisticHealthListener implements Listener {
@@ -23,22 +28,22 @@ public final class RealisticHealthListener implements Listener {
         this.healthService = healthService;
     }
 
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onInternalDamage(EntityDamageEvent event) {
+        if (!(event.getEntity() instanceof Player player)) {
+            return;
+        }
+
+        healthService.handleInternalTorsoDamage(player, event);
+    }
+
     @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = false)
     public void onEntityDamage(EntityDamageEvent event) {
         if (!(event.getEntity() instanceof Player player)) {
             return;
         }
 
-        if (!healthService.shouldProtectVanillaHealth(player)) {
-            return;
-        }
-
-        if (event.isCancelled() || healthService.shouldAllowVanillaKill(event) || event.getFinalDamage() <= 0.0D) {
-            return;
-        }
-
-        healthService.protectFromVanillaLethalDamage(player, event.getFinalDamage());
-        healthService.schedulePostDamageSync(player);
+        healthService.suppressExternalVanillaDamage(player, event);
     }
 
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
@@ -47,23 +52,44 @@ public final class RealisticHealthListener implements Listener {
             return;
         }
 
-        if (!healthService.shouldProtectVanillaHealth(player)) {
+        healthService.convertVanillaHealing(player, event);
+    }
+
+    @EventHandler
+    public void onPotionSplash(PotionSplashEvent event) {
+        for (LivingEntity entity : event.getAffectedEntities()) {
+            if (entity instanceof Player player) {
+                healthService.handlePotionEffects(player, event.getPotion().getEffects(), event.getIntensity(player), event);
+            }
+        }
+    }
+
+    @EventHandler
+    public void onAreaEffectCloudApply(AreaEffectCloudApplyEvent event) {
+        for (LivingEntity entity : event.getAffectedEntities()) {
+            if (entity instanceof Player player) {
+                healthService.handlePotionEffects(player, event.getEntity().getCustomEffects(), 1.0D, event);
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onPlayerItemConsume(PlayerItemConsumeEvent event) {
+        if (!(event.getItem().getItemMeta() instanceof PotionMeta meta)) {
             return;
         }
 
-        event.setAmount(0.0D);
-        event.setCancelled(true);
-        healthService.lockVanillaHealth(player);
+        healthService.handlePotionEffects(event.getPlayer(), healthService.readPotionEffects(meta), 1.0D, event);
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onNightSkip(TimeSkipEvent event) {
+        healthService.handleNightSkip(event);
     }
 
     @EventHandler
     public void onBodyPartStateChange(BodyPartStateChangeEvent event) {
         healthService.handleBodyPartStateChange(event);
-    }
-
-    @EventHandler
-    public void onBodyPartHealthChange(BodyPartHealthChangeEvent event) {
-        healthService.handleBodyPartHealthChange(event);
     }
 
     @EventHandler(priority = EventPriority.MONITOR)

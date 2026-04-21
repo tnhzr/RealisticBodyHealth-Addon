@@ -11,8 +11,8 @@ import java.io.File;
 
 @AddonInfo(
         name = "RealisticBodyHealth",
-        description = "Makes BodyHealth lethal through head and torso damage plus bleeding from broken limbs.",
-        version = "1.1.0",
+        description = "BodyHealth addon with vanilla-heart isolation, bleeding, potion healing, and sleep recovery.",
+        version = "1.3.0",
         author = "Islam"
 )
 public final class RealisticBodyHealthAddon extends BodyHealthAddon {

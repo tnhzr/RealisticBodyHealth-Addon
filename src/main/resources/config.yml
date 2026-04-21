@@ -19,6 +19,9 @@ clear-absorption: true
 # permissions fall back to vanilla HP and are ignored by this addon.
 respect-bodyhealth-bypass: true
 
+# Apply addon mechanics to OP players even if they implicitly have bypass permissions.
+apply-to-operators: true
+
 # Automatically force BodyHealth's heal-on-full-health setting off and reload it.
 auto-disable-bodyhealth-heal-on-full-health: true
 
@@ -35,3 +38,15 @@ bleeding:
   sound-volume: 0.9
   sound-pitch-base: 0.8
   actionbar: "&cYou are bleeding out"
+
+critical-effects:
+  enabled: true
+  head-threshold-percent: 35.0
+  torso-threshold-percent: 40.0
+  border-size: 10.0
+  warning-distance: 16
+  particle-count: 6
+
+sleep-healing:
+  enabled: true
+  heal-percent-per-part: 18.0

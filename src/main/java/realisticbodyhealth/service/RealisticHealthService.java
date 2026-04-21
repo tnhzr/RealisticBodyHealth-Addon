@@ -1,7 +1,6 @@
 package realisticbodyhealth.service;
 
 import bodyhealth.api.BodyHealthAPI;
-import bodyhealth.api.events.BodyPartHealthChangeEvent;
 import bodyhealth.api.events.BodyPartStateChangeEvent;
 import bodyhealth.core.BodyPart;
 import bodyhealth.core.BodyPartState;
@@ -12,18 +11,27 @@ import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
+import org.bukkit.WorldBorder;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
-import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.EntityDamageByBlockEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.entity.EntityRegainHealthEvent;
+import org.bukkit.event.world.TimeSkipEvent;
+import org.bukkit.inventory.meta.PotionMeta;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitTask;
 import realisticbodyhealth.RealisticBodyHealthAddon;
 import realisticbodyhealth.config.RealisticBodyHealthConfig;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
@@ -33,6 +41,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class RealisticHealthService {
 
     private static final String ADDON_BYPASS_PERMISSION = "realisticbodyhealth.bypass";
+    private static final int REGEN_TASK_INTERVAL_TICKS = 5;
+    private static final int CRITICAL_EFFECT_INTERVAL_TICKS = 5;
     private static final Set<BodyPart> BLEEDING_PARTS = EnumSet.of(
             BodyPart.ARM_LEFT,
             BodyPart.ARM_RIGHT,
@@ -46,16 +56,22 @@ public final class RealisticHealthService {
     private final BodyHealthAPI bodyHealthApi;
     private final LegacyComponentSerializer legacySerializer;
     private final Map<UUID, EnumSet<BodyPart>> brokenLimbs;
+    private final Map<UUID, Integer> regenerationCounters;
+    private final Map<UUID, WorldBorder> warningBorders;
 
     private RealisticBodyHealthConfig config;
     private BukkitTask syncTask;
     private BukkitTask bleedingTask;
+    private BukkitTask regenerationTask;
+    private BukkitTask criticalEffectsTask;
 
     public RealisticHealthService(RealisticBodyHealthAddon addon) {
         this.addon = addon;
         this.bodyHealthApi = BodyHealthAPI.getInstance();
         this.legacySerializer = LegacyComponentSerializer.legacyAmpersand();
         this.brokenLimbs = new ConcurrentHashMap<>();
+        this.regenerationCounters = new ConcurrentHashMap<>();
+        this.warningBorders = new ConcurrentHashMap<>();
     }
 
     public void reload(RealisticBodyHealthConfig config) {
@@ -63,12 +79,22 @@ public final class RealisticHealthService {
         ensureBodyHealthCompatibility();
         restartSyncTask();
         restartBleedingTask();
+        restartRegenerationTask();
+        restartCriticalEffectsTask();
     }
 
     public void shutdown() {
         cancelTask(syncTask);
         cancelTask(bleedingTask);
+        cancelTask(regenerationTask);
+        cancelTask(criticalEffectsTask);
         brokenLimbs.clear();
+        regenerationCounters.clear();
+
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            clearWarningBorder(player);
+        }
+        warningBorders.clear();
     }
 
     public boolean shouldControl(Player player) {
@@ -105,13 +131,6 @@ public final class RealisticHealthService {
         );
     }
 
-    public void schedulePostDamageSync(Player player) {
-        addon.getBodyHealthPlugin().getServer().getScheduler().runTask(
-                addon.getBodyHealthPlugin(),
-                () -> syncPlayer(player)
-        );
-    }
-
     public void syncPlayer(Player player) {
         if (!shouldControl(player)) {
             forgetPlayer(player);
@@ -119,14 +138,56 @@ public final class RealisticHealthService {
         }
 
         refreshBrokenLimbState(player);
-
         if (!player.isOnline() || player.isDead()) {
+            clearWarningBorder(player);
             return;
         }
 
         if (shouldProtectVanillaHealth(player)) {
             lockVanillaHealth(player);
         }
+
+        updateCriticalEffects(player);
+    }
+
+    public void handleInternalTorsoDamage(Player player, EntityDamageEvent event) {
+        if (!shouldControl(player) || event.isCancelled() || shouldAllowVanillaKill(event)) {
+            return;
+        }
+
+        if (!shouldRouteDirectlyToTorso(event) || event.getFinalDamage() <= 0.0D) {
+            return;
+        }
+
+        event.setCancelled(true);
+        bodyHealthApi.damagePlayerDirectly(player, event.getFinalDamage(), BodyPart.TORSO, false, event);
+        refreshBrokenLimbState(player);
+        applyVanillaDamageWindow(player);
+        scheduleSync(player, 1L);
+    }
+
+    public void suppressExternalVanillaDamage(Player player, EntityDamageEvent event) {
+        if (!shouldControl(player) || event.isCancelled() || shouldAllowVanillaKill(event)) {
+            return;
+        }
+
+        if (shouldRouteDirectlyToTorso(event) || event.getFinalDamage() <= 0.0D) {
+            return;
+        }
+
+        event.setDamage(0.0D);
+        applyVanillaDamageWindow(player);
+        scheduleSync(player, 1L);
+    }
+
+    public void convertVanillaHealing(Player player, EntityRegainHealthEvent event) {
+        if (!shouldControl(player) || event.getAmount() <= 0.0D) {
+            return;
+        }
+
+        event.setCancelled(true);
+        bodyHealthApi.healPlayer(player, (int) Math.max(1L, Math.round(event.getAmount())), false, event);
+        scheduleSync(player, 1L);
     }
 
     public void handleBodyPartStateChange(BodyPartStateChangeEvent event) {
@@ -137,50 +198,33 @@ public final class RealisticHealthService {
         }
 
         BodyPart part = event.getBodyPart();
-        BodyPartState newState = event.getNewState();
-
         if (!BLEEDING_PARTS.contains(part)) {
             return;
         }
 
-        updateBrokenLimb(player.getUniqueId(), part, newState == BodyPartState.BROKEN);
-    }
-
-    public void handleBodyPartHealthChange(BodyPartHealthChangeEvent event) {
-        Player player = event.getPlayer();
-        if (!shouldControl(player)) {
-            forgetPlayer(player);
-            return;
-        }
-
-        if (event.getNewHealth() >= event.getOldHealth()) {
-            return;
-        }
-
-        if (!shouldRouteDamageToTorso(event.getCause(), event.getBodyPart())) {
-            return;
-        }
-
-        double maxPartHealth = bodyHealthApi.getMaxPartHealth(player, event.getBodyPart());
-        double reroutedDamage = Math.max(0.0D, (event.getOldHealth() - event.getNewHealth()) / 100.0D * maxPartHealth);
-        if (reroutedDamage <= 0.0D) {
-            return;
-        }
-
-        event.setCancelled(true);
-        bodyHealthApi.damagePlayerDirectly(player, reroutedDamage, BodyPart.TORSO, false, event.getCause());
+        updateBrokenLimb(player.getUniqueId(), part, event.getNewState() == BodyPartState.BROKEN);
     }
 
     public void handlePlayerDeath(Player player) {
         brokenLimbs.remove(player.getUniqueId());
+        regenerationCounters.remove(player.getUniqueId());
+        clearWarningBorder(player);
     }
 
     public void handlePlayerRespawn(Player player) {
         brokenLimbs.remove(player.getUniqueId());
+        regenerationCounters.remove(player.getUniqueId());
+        clearWarningBorder(player);
     }
 
     public void forgetPlayer(Player player) {
+        if (player == null) {
+            return;
+        }
+
         brokenLimbs.remove(player.getUniqueId());
+        regenerationCounters.remove(player.getUniqueId());
+        clearWarningBorder(player);
     }
 
     public void lockVanillaHealth(Player player) {
@@ -198,19 +242,57 @@ public final class RealisticHealthService {
         }
     }
 
-    public void protectFromVanillaLethalDamage(Player player, double finalDamage) {
-        if (!shouldProtectVanillaHealth(player)) {
+    public List<PotionEffect> readPotionEffects(PotionMeta potionMeta) {
+        List<PotionEffect> effects = new ArrayList<>(potionMeta.getBasePotionType().getPotionEffects());
+        effects.addAll(potionMeta.getCustomEffects());
+        return effects;
+    }
+
+    public void handlePotionEffects(Player player, Collection<PotionEffect> potionEffects, double intensity, Event cause) {
+        if (!shouldControl(player) || potionEffects.isEmpty()) {
             return;
         }
 
-        double currentHealth = player.getHealth();
-        if (finalDamage < currentHealth) {
+        if (player.getHealth() + 0.01D < getVanillaMaxHealth(player)) {
             return;
         }
 
-        double requiredBuffer = (finalDamage - currentHealth) + 1.0D;
-        if (player.getAbsorptionAmount() < requiredBuffer) {
-            player.setAbsorptionAmount(requiredBuffer);
+        int totalInstantHealing = 0;
+        for (PotionEffect effect : potionEffects) {
+            if (effect.getType().equals(PotionEffectType.INSTANT_HEALTH)) {
+                totalInstantHealing += calculateInstantHealthHealing(effect, intensity);
+            }
+        }
+
+        if (totalInstantHealing <= 0) {
+            return;
+        }
+
+        bodyHealthApi.healPlayer(player, totalInstantHealing, false, cause);
+        scheduleSync(player, 1L);
+    }
+
+    public void handleNightSkip(TimeSkipEvent event) {
+        if (config == null
+                || !config.sleepHealing().enabled()
+                || event.getSkipReason() != TimeSkipEvent.SkipReason.NIGHT_SKIP) {
+            return;
+        }
+
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (!player.isSleeping() || !shouldControl(player)) {
+                continue;
+            }
+
+            for (BodyPart part : BodyPart.values()) {
+                double currentHealth = bodyHealthApi.getHealth(player, part);
+                double healedHealth = Math.min(100.0D, currentHealth + config.sleepHealing().healPercentPerPart());
+                if (healedHealth > currentHealth) {
+                    bodyHealthApi.setHealth(player, part, healedHealth, false, event);
+                }
+            }
+
+            scheduleSync(player, 1L);
         }
     }
 
@@ -260,6 +342,34 @@ public final class RealisticHealthService {
         );
     }
 
+    private void restartRegenerationTask() {
+        cancelTask(regenerationTask);
+        if (config == null || !config.strictMode()) {
+            return;
+        }
+
+        regenerationTask = addon.getBodyHealthPlugin().getServer().getScheduler().runTaskTimer(
+                addon.getBodyHealthPlugin(),
+                this::runRegenerationTick,
+                REGEN_TASK_INTERVAL_TICKS,
+                REGEN_TASK_INTERVAL_TICKS
+        );
+    }
+
+    private void restartCriticalEffectsTask() {
+        cancelTask(criticalEffectsTask);
+        if (config == null || !config.strictMode() || !config.criticalEffects().enabled()) {
+            return;
+        }
+
+        criticalEffectsTask = addon.getBodyHealthPlugin().getServer().getScheduler().runTaskTimer(
+                addon.getBodyHealthPlugin(),
+                this::runCriticalEffectsTick,
+                CRITICAL_EFFECT_INTERVAL_TICKS,
+                CRITICAL_EFFECT_INTERVAL_TICKS
+        );
+    }
+
     private void runBleedingTick() {
         if (config == null || !config.bleeding().enabled()) {
             return;
@@ -274,11 +384,7 @@ public final class RealisticHealthService {
             }
 
             EnumSet<BodyPart> limbs = brokenLimbs.get(player.getUniqueId());
-            if (limbs == null || limbs.isEmpty()) {
-                continue;
-            }
-
-            if (player.isDead()) {
+            if (limbs == null || limbs.isEmpty() || player.isDead()) {
                 continue;
             }
 
@@ -307,6 +413,71 @@ public final class RealisticHealthService {
             }
             lockVanillaHealth(player);
         }
+    }
+
+    private void runRegenerationTick() {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            if (!shouldControl(player) || player.isDead()) {
+                if (player != null) {
+                    regenerationCounters.remove(player.getUniqueId());
+                }
+                continue;
+            }
+
+            PotionEffect regeneration = player.getPotionEffect(PotionEffectType.REGENERATION);
+            if (regeneration == null) {
+                regenerationCounters.remove(player.getUniqueId());
+                continue;
+            }
+
+            if (player.getHealth() + 0.01D < getVanillaMaxHealth(player)) {
+                regenerationCounters.remove(player.getUniqueId());
+                continue;
+            }
+
+            int periodTicks = Math.max(REGEN_TASK_INTERVAL_TICKS, 50 / (regeneration.getAmplifier() + 1));
+            int accumulatedTicks = regenerationCounters.merge(player.getUniqueId(), REGEN_TASK_INTERVAL_TICKS, Integer::sum);
+            if (accumulatedTicks < periodTicks) {
+                continue;
+            }
+
+            int healPulses = accumulatedTicks / periodTicks;
+            regenerationCounters.put(player.getUniqueId(), accumulatedTicks % periodTicks);
+            bodyHealthApi.healPlayer(player, healPulses, false, null);
+            lockVanillaHealth(player);
+        }
+    }
+
+    private void runCriticalEffectsTick() {
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            updateCriticalEffects(player);
+        }
+    }
+
+    private void updateCriticalEffects(Player player) {
+        if (!shouldControl(player) || player.isDead() || !config.criticalEffects().enabled()) {
+            clearWarningBorder(player);
+            return;
+        }
+
+        boolean bleeding = false;
+        EnumSet<BodyPart> limbs = brokenLimbs.get(player.getUniqueId());
+        if (limbs != null && !limbs.isEmpty()) {
+            bleeding = true;
+        }
+
+        double headHealth = bodyHealthApi.getHealth(player, BodyPart.HEAD);
+        double torsoHealth = bodyHealthApi.getHealth(player, BodyPart.TORSO);
+        boolean criticalHead = headHealth <= config.criticalEffects().headThresholdPercent();
+        boolean criticalTorso = torsoHealth <= config.criticalEffects().torsoThresholdPercent();
+
+        if (!criticalHead && !criticalTorso && !bleeding) {
+            clearWarningBorder(player);
+            return;
+        }
+
+        applyWarningBorder(player);
+        showCriticalParticles(player, criticalHead, criticalTorso, bleeding);
     }
 
     private void showBleedingEffects(Player player, int stackCount) {
@@ -343,7 +514,7 @@ public final class RealisticHealthService {
                     origin.getX() + xOffset,
                     endY,
                     origin.getZ() + zOffset,
-                    2,
+                    Math.max(2, particles / 6),
                     0.06D,
                     0.01D,
                     0.06D,
@@ -359,8 +530,55 @@ public final class RealisticHealthService {
         player.sendActionBar(actionbar);
     }
 
-    private boolean isBroken(Player player, BodyPart part) {
-        return bodyHealthApi.getBodyHealthState(player, part) == BodyPartState.BROKEN;
+    private void showCriticalParticles(Player player, boolean criticalHead, boolean criticalTorso, boolean bleeding) {
+        int particleCount = config.criticalEffects().particleCount();
+        Particle.DustOptions headDust = new Particle.DustOptions(Color.fromRGB(180, 10, 10), 1.1F);
+        Particle.DustOptions torsoDust = new Particle.DustOptions(Color.fromRGB(120, 0, 0), 1.3F);
+        Location base = player.getLocation();
+
+        if (criticalHead) {
+            player.getWorld().spawnParticle(
+                    Particle.DUST,
+                    base.getX(),
+                    base.getY() + 1.65D,
+                    base.getZ(),
+                    particleCount,
+                    0.18D,
+                    0.08D,
+                    0.18D,
+                    0.0D,
+                    headDust
+            );
+        }
+
+        if (criticalTorso) {
+            player.getWorld().spawnParticle(
+                    Particle.DUST,
+                    base.getX(),
+                    base.getY() + 1.05D,
+                    base.getZ(),
+                    particleCount + 2,
+                    0.22D,
+                    0.12D,
+                    0.22D,
+                    0.0D,
+                    torsoDust
+            );
+        }
+
+        if (bleeding) {
+            player.getWorld().spawnParticle(
+                    Particle.DAMAGE_INDICATOR,
+                    base.getX(),
+                    base.getY() + 1.0D,
+                    base.getZ(),
+                    Math.max(1, particleCount / 2),
+                    0.18D,
+                    0.18D,
+                    0.18D,
+                    0.0D
+            );
+        }
     }
 
     private void refreshBrokenLimbState(Player player) {
@@ -392,7 +610,18 @@ public final class RealisticHealthService {
         }
     }
 
+    private void applyVanillaDamageWindow(Player player) {
+        int maximumNoDamageTicks = player.getMaximumNoDamageTicks();
+        if (maximumNoDamageTicks > 0) {
+            player.setNoDamageTicks(Math.max(player.getNoDamageTicks(), maximumNoDamageTicks));
+        }
+    }
+
     private boolean hasBypass(Player player) {
+        if (config != null && config.applyToOperators() && player.isOp()) {
+            return false;
+        }
+
         if (player.hasPermission(ADDON_BYPASS_PERMISSION)) {
             return true;
         }
@@ -428,24 +657,48 @@ public final class RealisticHealthService {
         return player != null && (isBroken(player, BodyPart.HEAD) || isBroken(player, BodyPart.TORSO));
     }
 
-    private boolean shouldRouteDamageToTorso(Event cause, BodyPart bodyPart) {
-        if (bodyPart == BodyPart.TORSO) {
-            return false;
-        }
+    private boolean shouldRouteDirectlyToTorso(EntityDamageEvent event) {
+        return !(event instanceof EntityDamageByEntityEvent)
+                && !(event instanceof EntityDamageByBlockEvent)
+                && event.getCause() != EntityDamageEvent.DamageCause.KILL;
+    }
 
-        if (!(cause instanceof EntityDamageEvent damageEvent)) {
-            return false;
-        }
-
-        if (damageEvent instanceof EntityDamageByEntityEvent || damageEvent instanceof EntityDamageByBlockEvent) {
-            return false;
-        }
-
-        return true;
+    private boolean isBroken(Player player, BodyPart part) {
+        return bodyHealthApi.getBodyHealthState(player, part) == BodyPartState.BROKEN;
     }
 
     private double getVanillaMaxHealth(Player player) {
         return player.getMaxHealth();
+    }
+
+    private int calculateInstantHealthHealing(PotionEffect effect, double intensity) {
+        int baseHealing = 4 << Math.max(0, effect.getAmplifier());
+        return (int) Math.max(1L, Math.round(baseHealing * Math.max(0.0D, intensity)));
+    }
+
+    private void applyWarningBorder(Player player) {
+        WorldBorder border = warningBorders.computeIfAbsent(player.getUniqueId(), ignored -> {
+            WorldBorder createdBorder = Bukkit.createWorldBorder();
+            createdBorder.setDamageAmount(0.0D);
+            createdBorder.setDamageBuffer(1_000_000.0D);
+            return createdBorder;
+        });
+
+        Location location = player.getLocation();
+        border.setCenter(location.getX(), location.getZ());
+        border.setSize(config.criticalEffects().borderSize());
+        border.setWarningDistance(config.criticalEffects().warningDistance());
+        player.setWorldBorder(border);
+    }
+
+    private void clearWarningBorder(Player player) {
+        if (player == null) {
+            return;
+        }
+
+        if (warningBorders.remove(player.getUniqueId()) != null) {
+            player.setWorldBorder(null);
+        }
     }
 
     private double findGroundY(Location origin) {

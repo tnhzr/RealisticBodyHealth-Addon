@@ -1,56 +1,84 @@
 # RealisticBodyHealth
 
-`RealisticBodyHealth` is a `BodyHealth` addon for `Paper 1.21.8` / `Java 21` that makes body-part damage the source of truth for survival.
+`RealisticBodyHealth` is a `BodyHealth` addon for `Paper 1.21.x` running on `Java 21` to `Java 26`.
 
-## What It Does
+The addon keeps vanilla hearts out of survival logic and lets `BodyHealth` remain the main source of truth for body-part damage.
 
-- Lets `BodyHealth` process hits first, then cancels vanilla HP loss so hearts do not decide death.
-- Leaves `HEAD` / `TORSO` death to `BodyHealth` itself.
-- Starts bleeding when arms, legs, or feet are broken.
-- Converts bleeding into periodic `TORSO` damage until the player dies from blood loss.
-- Blocks vanilla healing, clears absorption hearts, and keeps vanilla HP synced to max for covered players.
+## Что делает аддон
 
-<img width="608" height="600" alt="image" src="https://github.com/user-attachments/assets/d0617504-0e08-46f6-b007-2bb232157a39" />
+- Оставляет внешний урон от мобов, игроков, стрел, зелий и блоков на стороне `BodyHealth`, но не дает ванильным сердечкам тратиться.
+- Перенаправляет внутренний и нелокационный урон прямо в `TORSO`.
+  - Сюда входят голод, утопление, огонь, лава и другие причины урона без конкретной точки попадания.
+- Не дублирует смерть по `HEAD` и `TORSO`.
+  - Смерть при нуле головы или торса должна настраиваться в самом `BodyHealth`.
+- Оставляет кровотечение от сломанных конечностей и продолжает переводить его в постепенный урон по `TORSO`.
+- Поддерживает `OP`-игроков.
+  - По умолчанию аддон работает и на операторах, даже если они автоматически имеют bypass-права.
+- Возвращает лечение частей тела от:
+  - зелья мгновенного исцеления
+  - зелья регенерации
+  - других `EntityRegainHealthEvent`, которые теперь конвертируются в лечение частей тела, а не сердечек
+- Лечит части тела после сна только если ночь реально была пропущена.
 
+## Визуальные эффекты
 
-## Compatibility
+- При кровотечении остаются эффекты крови, звуки и actionbar.
+- При низком здоровье `HEAD` или `TORSO` появляется красная виньетка через персональный `WorldBorder` и дополнительные красные частицы.
 
-`RealisticBodyHealth` automatically forces `plugins/BodyHealth/config.yml` -> `heal-on-full-health: false` and reloads `BodyHealth`, because the default value breaks strict body-part-only gameplay.
+## Совместимость
 
-## Build
+- `Paper 1.21.x`
+- `Java 21` - `Java 26`
+- `BodyHealth 4.1.0`
+
+`RealisticBodyHealth` автоматически принудительно выключает `plugins/BodyHealth/config.yml -> heal-on-full-health`, потому что эта настройка ломает механику аддона.
+
+## Сборка
 
 ```bash
 mvn package
 ```
 
-The built jar will be created in `target/` as `RealisticBodyHealth-<version>.jar`.
+Готовый jar создаётся в `target/` как `RealisticBodyHealth-<version>.jar`.
 
-## Install
+## Установка
 
-1. Build the jar with Maven.
-2. Drop the jar into `plugins/BodyHealth/addons`.
-3. Restart the server or reload `BodyHealth`.
+1. Собери jar через Maven или возьми готовый релиз.
+2. Положи jar **не** в `/plugins`.
+3. Правильный путь для аддона: `/plugins/BodyHealth/addons/`
+4. Перезапусти сервер или перезагрузи `BodyHealth`.
 
-## Permissions
+## Ресурспак на скрытие сердечек
+
+В репозитории уже лежит готовая папка [resourcepack](resourcepack/) с текстурами для скрытия ванильных сердечек.
+
+Если ты хочешь полностью убрать hearts HUD:
+
+1. Заархивируй содержимое папки `resourcepack/` в zip.
+2. Подключи этот архив как обычный серверный ресурспак.
+3. Показывай здоровье через `BetterHud` / `BodyHealth`.
+
+Также остаётся шаблон документации в [docs/resource-pack-template/README.md](docs/resource-pack-template/README.md).
+
+## Конфиг
+
+Основные настройки:
+
+- `apply-to-operators`
+  - включает механику аддона для `OP`
+- `bleeding.*`
+  - скорость и летальность кровотечения
+- `critical-effects.*`
+  - пороги и интенсивность визуальных эффектов для `HEAD` и `TORSO`
+- `sleep-healing.heal-percent-per-part`
+  - сколько процентов здоровья части тела восстанавливается за одну реально пропущенную ночь
+
+## Права
 
 - `realisticbodyhealth.bypass`
-- Respects `bodyhealth.bypass.*`
-- Respects `bodyhealth.bypass.damage.*`
-- Respects `bodyhealth.bypass.regen.*`
-- Respects per-part `bodyhealth.bypass.damage.<part>` and `bodyhealth.bypass.regen.<part>`
+- Уважаются права `bodyhealth.bypass.*`
+- Уважаются права `bodyhealth.bypass.damage.*`
+- Уважаются права `bodyhealth.bypass.regen.*`
+- Уважаются `bodyhealth.bypass.damage.<part>` и `bodyhealth.bypass.regen.<part>`
 
-## Lethal Rules
-
-- `HEAD` / `TORSO` lethal handling is expected to be configured in `BodyHealth`.
-- Broken limbs do not kill immediately.
-- Broken limbs apply bleed stacks.
-- Bleed stacks deal periodic `TORSO` damage.
-- Bleeding speed and whether it can kill are configurable in this addon's config.
-
-## Heart HUD
-
-Server-side Bukkit/Paper APIs can control health values and scale, but they do not provide a reliable way to fully hide vanilla hearts for all clients.
-
-For complete visual removal, use a client resource pack and show health through `BetterHud` / `BodyHealth`.
-
-There is a documented template in [docs/resource-pack-template/README.md](docs/resource-pack-template/README.md).
+Если `apply-to-operators: true`, операторы не будут автоматически обходить механику аддона только из-за `OP`.
